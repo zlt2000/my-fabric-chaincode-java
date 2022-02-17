@@ -6,6 +6,7 @@ import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.*;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.KeyModification;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.zlt.fabric.model.User;
@@ -39,15 +40,29 @@ public class MyAssetChaincode implements ContractInterface {
     }
 
     /**
+     * 获取该id的所有变更记录
+     */
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public String getHistory(final Context ctx, final String userId) {
+        List<String> userList = new ArrayList<>();
+        ChaincodeStub stub = ctx.getStub();
+        QueryResultsIterator<KeyModification> iterator = stub.getHistoryForKey(userId);
+        for (KeyModification result: iterator) {
+            userList.add(result.getStringValue());
+        }
+        return JSON.toJSONString(userList);
+    }
+
+    /**
      * 新增用户
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public User addUser(final Context ctx, final String userId, final String name, final double money) {
+    public String addUser(final Context ctx, final String userId, final String name, final double money) {
         ChaincodeStub stub = ctx.getStub();
         User user = new User(userId, name, money);
         String userJson = JSON.toJSONString(user);
         stub.putStringState(userId, userJson);
-        return user;
+        return stub.getTxId();
     }
 
     /**
@@ -61,8 +76,7 @@ public class MyAssetChaincode implements ContractInterface {
             String errorMessage = String.format("User %s does not exist", userId);
             throw new ChaincodeException(errorMessage);
         }
-        User user = JSON.parseObject(userJSON, User.class);
-        return user;
+        return JSON.parseObject(userJSON, User.class);
     }
 
     /**
@@ -88,7 +102,7 @@ public class MyAssetChaincode implements ContractInterface {
      * @param money 金额
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public void transfer(final Context ctx, final String sourceId, final String targetId, final double money) {
+    public String transfer(final Context ctx, final String sourceId, final String targetId, final double money) {
         ChaincodeStub stub = ctx.getStub();
         User sourceUser = getUser(ctx, sourceId);
         User targetUser = getUser(ctx, targetId);
@@ -100,5 +114,6 @@ public class MyAssetChaincode implements ContractInterface {
         User newTargetUser = new User(targetUser.getUserId(), targetUser.getName(), targetUser.getMoney() + money);
         stub.putStringState(sourceId, JSON.toJSONString(newSourceUser));
         stub.putStringState(targetId, JSON.toJSONString(newTargetUser));
+        return stub.getTxId();
     }
 }
