@@ -12,7 +12,9 @@ import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.zlt.fabric.model.User;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 智能合约
@@ -42,15 +44,15 @@ public class MyAssetChaincode implements ContractInterface {
     /**
      * 获取该id的所有变更记录
      */
-    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String getHistory(final Context ctx, final String userId) {
-        List<String> userList = new ArrayList<>();
+        Map<String, String> userHistory = new HashMap<>();
         ChaincodeStub stub = ctx.getStub();
         QueryResultsIterator<KeyModification> iterator = stub.getHistoryForKey(userId);
         for (KeyModification result: iterator) {
-            userList.add(result.getStringValue());
+            userHistory.put(result.getTxId(), result.getStringValue());
         }
-        return JSON.toJSONString(userList);
+        return JSON.toJSONString(userHistory);
     }
 
     /**
